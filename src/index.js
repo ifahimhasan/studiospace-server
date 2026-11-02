@@ -4,6 +4,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import { getDb } from "./db.js";
 import studiosRouter from "./routes/studios.js";
+import authRouter from "./routes/auth.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -29,6 +30,7 @@ app.get("/", async (_req, res) => {
   }
 });
 
+app.use("/api/auth", authRouter);
 app.use("/api/studios", studiosRouter);
 
 app.use((_req, res) => res.status(404).json({ message: "Route not found" }));
