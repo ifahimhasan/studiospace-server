@@ -47,6 +47,9 @@ app.use((err, _req, res, _next) => {
   res.status(err.status || 500).json({ message: err.expose ? err.message : "Something went wrong on our side." });
 });
 
-app.listen(PORT, () => console.log(`StudioSpace API listening on :${PORT}`));
+// On Vercel the app is exported as a serverless handler; everywhere else we listen.
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => console.log(`StudioSpace API listening on :${PORT}`));
+}
 
 export default app;
