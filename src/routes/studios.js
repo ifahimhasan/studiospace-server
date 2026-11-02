@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { collections } from "../db.js";
-import { CATEGORIES, escapeRegex, toObjectId } from "../utils/validate.js";
+import { CATEGORIES, escapeRegex, toObjectId, validateStudio } from "../utils/validate.js";
+import { verifyToken } from "../middleware/verifyToken.js";
 
 const router = Router();
 
@@ -54,6 +55,90 @@ router.get("/featured", async (_req, res, next) => {
       .limit(6)
       .toArray();
     res.json(items);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** GET /api/studios/mine — studios owned by the logged-in host (ownerEmail match). */
+router.get("/mine", verifyToken, async (req, res, next) => {
+  try {
+    const { studios } = await collections();
+    const items = await studios.find({ ownerEmail: req.user.email }).sort({ createdAt: -1 }).toArray();
+    res.json(items);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** POST /api/studios — create a listing. Protected: 401 without a valid JWT cookie. */
+router.post("/", verifyToken, async (req, res, next) => {
+  try {
+    const { value, error } = validateStudio(req.body);
+    if (error) return res.status(400).json({ message: error });
+    const { studios } = await collections();
+    const now = new Date();
+    const doc = {
+      ...value,
+      ownerEmail: req.user.email,
+      ownerName: req.user.name,
+      ownerImage: req.user.image,
+      rating: 0,
+      reviewCount: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const { insertedId } = await studios.insertOne(doc);
+    res.status(201).json({ ...doc, _id: insertedId });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** PATCH /api/studios/:id — update a listing; only its owner may do this. */
+router.patch("/:id", verifyToken, async (req, res, next) => {
+  try {
+    const _id = toObjectId(req.params.id);
+    if (!_id) return res.status(404).json({ message: "Studio not found." });
+    const { value, error } = validateStudio(req.body);
+    if (error) return res.status(400).json({ message: error });
+    const { studios } = await collections();
+    const existing = await studios.findOne({ _id }, { projection: { ownerEmail: 1 } });
+    if (!existing) return res.status(404).json({ message: "Studio not found." });
+    if (existing.ownerEmail !== req.user.email)
+      return res.status(403).json({ message: "Forbidden: you can only edit your own studios." });
+    const updated = await studios.findOneAndUpdate(
+      { _id },
+      { $set: { ...value, updatedAt: new Date() } },
+      { returnDocument: "after" }
+    );
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** DELETE /api/studios/:id — remove a listing (owner only) and tidy related data. */
+router.delete("/:id", verifyToken, async (req, res, next) => {
+  try {
+    const _id = toObjectId(req.params.id);
+    if (!_id) return res.status(404).json({ message: "Studio not found." });
+    const { studios, bookings, wishlist, reviews } = await collections();
+    const existing = await studios.findOne({ _id }, { projection: { ownerEmail: 1 } });
+    if (!existing) return res.status(404).json({ message: "Studio not found." });
+    if (existing.ownerEmail !== req.user.email)
+      return res.status(403).json({ message: "Forbidden: you can only delete your own studios." });
+
+    await studios.deleteOne({ _id });
+    await Promise.all([
+      wishlist.deleteMany({ studioId: _id }),
+      reviews.deleteMany({ studioId: _id }),
+      bookings.updateMany(
+        { studioId: _id, status: { $in: ["Pending", "Confirmed"] } },
+        { $set: { status: "Cancelled", cancelReason: "Listing removed by host", updatedAt: new Date() } }
+      ),
+    ]);
+    res.json({ success: true, deletedId: _id });
   } catch (err) {
     next(err);
   }
