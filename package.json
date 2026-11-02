@@ -1,0 +1,28 @@
+{
+  "name": "studiospace-server",
+  "version": "1.0.0",
+  "description": "REST API for StudioSpace — peer-to-peer creative studio booking",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "seed": "node src/seed.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.9",
+    "express": "^4.22.3",
+    "jose": "^6.2.15",
+    "mongodb": "^7.8.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  }
+}
