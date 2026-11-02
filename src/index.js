@@ -7,6 +7,7 @@ import studiosRouter from "./routes/studios.js";
 import authRouter from "./routes/auth.js";
 import bookingsRouter from "./routes/bookings.js";
 import wishlistRouter from "./routes/wishlist.js";
+import reviewsRouter from "./routes/reviews.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -33,6 +34,7 @@ app.get("/", async (_req, res) => {
 });
 
 app.use("/api/auth", authRouter);
+app.use("/api/studios/:id/reviews", reviewsRouter);
 app.use("/api/studios", studiosRouter);
 app.use("/api/bookings", bookingsRouter);
 app.use("/api/wishlist", wishlistRouter);
