@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import { getDb } from "./db.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -17,8 +18,14 @@ app.use(
 app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
 
-app.get("/", (_req, res) => {
-  res.json({ name: "StudioSpace API", status: "ok" });
+app.get("/", async (_req, res) => {
+  try {
+    const db = await getDb();
+    await db.command({ ping: 1 });
+    res.json({ name: "StudioSpace API", status: "ok", database: "connected" });
+  } catch {
+    res.status(503).json({ name: "StudioSpace API", status: "degraded", database: "unreachable" });
+  }
 });
 
 app.use((_req, res) => res.status(404).json({ message: "Route not found" }));
